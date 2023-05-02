@@ -37,7 +37,7 @@ pub fn clear_bss() {
 }
 
 /// the rust entry-point of os
-#[no_mangle]
+#[no_mangle] // 避免编译器混淆
 pub fn rust_main() -> ! {
     extern "C" {
         fn stext(); // begin addr of text segment
@@ -54,6 +54,7 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     println!("[kernel] Hello, world!");
+    // panic!("Shutdown machine!");
     trace!(
         "[kernel] .text [{:#x}, {:#x})",
         stext as usize,
@@ -64,8 +65,20 @@ pub fn rust_main() -> ! {
         srodata as usize, erodata as usize
     );
     info!(
+        "[kernel] .text [{:#x}, {:#x}) ",
+        stext as usize, etext as usize
+    );
+    info!(
+        "[kernel] .rodata [{:#x}, {:#x}) ",
+        srodata as usize, erodata as usize
+    );
+    info!(
         "[kernel] .data [{:#x}, {:#x})",
         sdata as usize, edata as usize
+    );
+    info!(
+        "[kernel] .bss [{:#x}, {:#x}) ",
+        sbss as usize, ebss as usize
     );
     warn!(
         "[kernel] boot_stack top=bottom={:#x}, lower_bound={:#x}",

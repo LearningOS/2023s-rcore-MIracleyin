@@ -53,6 +53,10 @@ disasm-vim: kernel
 
 run: run-inner
 
+# -machine virt 指将模拟的 64 位计算机设置名为 virt
+# -nographic 无图形界面，只需要输出字符串
+# -bios 设置 Qemu 开机时用来初始化的引导加载程序 bootloader
+# -device 通过虚拟机中的 loader 属性，可以将 Qemu 开机之前将宿主机的文件加载到 Qemu 的物理内存的指定位置，file是文件，addr是位置
 run-inner: build
 	@qemu-system-riscv64 \
 		-machine virt \

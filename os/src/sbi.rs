@@ -12,10 +12,10 @@ fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
         asm!(
             "li x16, 0",
             "ecall",
-            inlateout("x10") arg0 => ret,
-            in("x11") arg1,
-            in("x12") arg2,
-            in("x17") which,
+            inlateout("x10") arg0 => ret, // 参数，同时从 x10 寄存器获取返回值
+            in("x11") arg1, // 参数
+            in("x12") arg2, // 参数
+            in("x17") which, // RustSBI 服务类型
         );
     }
     ret

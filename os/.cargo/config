@@ -1,7 +1,7 @@
 [build]
-target = "riscv64gc-unknown-none-elf"
+target = "riscv64gc-unknown-none-elf" # 默认使用 riscv64gc作为目标平台，而不是默认的 x86_64-unknown-linux-gun，开发平台于可执行文件运行的目标平台不一致，称为交叉编译 cross compile
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = [
     "-Clink-arg=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"
-]
+] # 不使用默认内存布局

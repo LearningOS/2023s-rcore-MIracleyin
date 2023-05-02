@@ -3,11 +3,11 @@ use riscv::register::sstatus::{self, Sstatus, SPP};
 #[repr(C)]
 pub struct TrapContext {
     /// general regs[0..31]
-    pub x: [usize; 32],
+    pub x: [usize; 32], // 通用寄存器
     /// CSR sstatus      
-    pub sstatus: Sstatus,
+    pub sstatus: Sstatus, // crc 寄存器，用于记录发生 Trap 之前 CPU 处在的特权级信息
     /// CSR sepc
-    pub sepc: usize,
+    pub sepc: usize, // 记录 Trap 发生之前执行的最后一条指令地址
 }
 
 impl TrapContext {

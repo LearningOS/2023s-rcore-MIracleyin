@@ -5,8 +5,8 @@ use crate::trap::TrapContext;
 use core::arch::asm;
 use lazy_static::*;
 
-const USER_STACK_SIZE: usize = 4096 * 2;
-const KERNEL_STACK_SIZE: usize = 4096 * 2;
+const USER_STACK_SIZE: usize = 4096 * 2; // 8KiB
+const KERNEL_STACK_SIZE: usize = 4096 * 2; // 8KiB
 const MAX_APP_NUM: usize = 16;
 const APP_BASE_ADDRESS: usize = 0x80400000;
 const APP_SIZE_LIMIT: usize = 0x20000;
@@ -21,7 +21,7 @@ struct UserStack {
     data: [u8; USER_STACK_SIZE],
 }
 
-static KERNEL_STACK: KernelStack = KernelStack {
+static KERNEL_STACK: KernelStack = KernelStack { // 全局变量放置在 .bss 段中
     data: [0; KERNEL_STACK_SIZE],
 };
 static USER_STACK: UserStack = UserStack {
@@ -29,7 +29,7 @@ static USER_STACK: UserStack = UserStack {
 };
 
 impl KernelStack {
-    fn get_sp(&self) -> usize {
+    fn get_sp(&self) -> usize { // 换栈则是将 sp 指针的地址修改为 get_sp
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
     pub fn push_context(&self, cx: TrapContext) -> &'static mut TrapContext {
@@ -42,14 +42,14 @@ impl KernelStack {
 }
 
 impl UserStack {
-    fn get_sp(&self) -> usize {
+    fn get_sp(&self) -> usize { // 返回包裹的数组的结尾地址
         self.data.as_ptr() as usize + USER_STACK_SIZE
     }
 }
 
 struct AppManager {
     num_app: usize,
-    current_app: usize,
+    current_app: usize, // 表示当前执行第几个应用，可修改，会在运行期间发生变化
     app_start: [usize; MAX_APP_NUM + 1],
 }
 
@@ -66,7 +66,7 @@ impl AppManager {
         }
     }
 
-    unsafe fn load_app(&self, app_id: usize) {
+    unsafe fn load_app(&self, app_id: usize) { // 将 app_id 对应的应用程序二进制镜像加载到物理内存，以 0x80400000 起始的地址
         if app_id >= self.num_app {
             println!("All applications completed!");
             use crate::board::QEMUExit;
@@ -74,20 +74,20 @@ impl AppManager {
         }
         println!("[kernel] Loading app_{}", app_id);
         // clear app area
-        core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, APP_SIZE_LIMIT).fill(0);
+        core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, APP_SIZE_LIMIT).fill(0); // 清空内存
         let app_src = core::slice::from_raw_parts(
             self.app_start[app_id] as *const u8,
-            self.app_start[app_id + 1] - self.app_start[app_id],
-        );
+            self.app_start[app_id + 1] - self.app_start[app_id], 
+        ); // 找到 app 二进制镜像地址，以及长度
         let app_dst = core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, app_src.len());
-        app_dst.copy_from_slice(app_src);
+        app_dst.copy_from_slice(app_src); // 复制到正确位置
         // Memory fence about fetching the instruction memory
         // It is guaranteed that a subsequent instruction fetch must
         // observes all previous writes to the instruction memory.
         // Therefore, fence.i must be executed after we have loaded
         // the code of the next app into the instruction memory.
         // See also: riscv non-priv spec chapter 3, 'Zifencei' extension.
-        asm!("fence.i");
+        asm!("fence.i"); // 保证在它之后的取指令过程，必须能够看到在它之前的所有对于取指令内存区域的修改，可以保证 CPU 访问的应用代码是最新的，而不是 i-cache 过时的内容 qemu 可以正常运行 实机不一定
     }
 
     pub fn get_current_app(&self) -> usize {
@@ -99,30 +99,30 @@ impl AppManager {
     }
 }
 
-lazy_static! {
+lazy_static! { // 提供了全局变量的运行时初始化功能。一些全局变量依赖运行期间才能得到的数据作为初始值
     static ref APP_MANAGER: UPSafeCell<AppManager> = unsafe {
         UPSafeCell::new({
             extern "C" {
-                fn _num_app();
+                fn _num_app(); // link_app.S global
             }
-            let num_app_ptr = _num_app as usize as *const usize;
-            let num_app = num_app_ptr.read_volatile();
-            let mut app_start: [usize; MAX_APP_NUM + 1] = [0; MAX_APP_NUM + 1];
+            let num_app_ptr = _num_app as usize as *const usize; // 取地址
+            let num_app = num_app_ptr.read_volatile(); // 第一个地址是数量
+            let mut app_start: [usize; MAX_APP_NUM + 1] = [0; MAX_APP_NUM + 1]; // 初始化一个切片保存 app 起始地址
             let app_start_raw: &[usize] =
-                core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1);
-            app_start[..=num_app].copy_from_slice(app_start_raw);
+                core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1); // 取每一个 app 地址
+            app_start[..=num_app].copy_from_slice(app_start_raw); // 保存到 app_start
             AppManager {
                 num_app,
                 current_app: 0,
                 app_start,
-            }
+            } // 返回 AppManager
         })
     };
 }
 
 /// init batch subsystem
 pub fn init() {
-    print_app_info();
+    print_app_info(); // 第一次用到全局变量 APP_MANAGER，在这里被初始化
 }
 
 /// print apps info
@@ -131,14 +131,14 @@ pub fn print_app_info() {
 }
 
 /// run next app
-pub fn run_next_app() -> ! {
+pub fn run_next_app() -> ! { // 加载并运行下一个应用程序
     let mut app_manager = APP_MANAGER.exclusive_access();
     let current_app = app_manager.get_current_app();
     unsafe {
         app_manager.load_app(current_app);
     }
     app_manager.move_to_next_app();
-    drop(app_manager);
+    drop(app_manager); // 一定要手动丢弃
     // before this we have to drop local variables related to resources manually
     // and release the resources
     extern "C" {

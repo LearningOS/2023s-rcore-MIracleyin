@@ -22,8 +22,8 @@ use fs::*;
 use process::*;
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
-    match syscall_id {
-        SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+    match syscall_id { // 根据 syscall ID 分发到具体处理函数
+        SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]), 
         SYSCALL_EXIT => sys_exit(args[0] as i32),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
